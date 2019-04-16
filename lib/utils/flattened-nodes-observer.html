@@ -81,14 +81,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {Array} The list of flattened nodes for the given `node`.
     */
     static getFlattenedNodes(node) {
+      const wrapped = Polymer.wrap(node);
       if (isSlot(node)) {
-        node = /** @type {HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
-        return node.assignedNodes({flatten: true});
+        node = /** @type {!HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
+        return wrapped.assignedNodes({flatten: true});
       } else {
-        return Array.from(node.childNodes).map((node) => {
+        return Array.from(wrapped.childNodes).map((node) => {
           if (isSlot(node)) {
-            node = /** @type {HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
-            return node.assignedNodes({flatten: true});
+            node = /** @type {!HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
+            return Polymer.wrap(node).assignedNodes({flatten: true});
           } else {
             return [node];
           }
@@ -143,8 +144,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     connect() {
       if (isSlot(this._target)) {
         this._listenSlots([this._target]);
-      } else if (this._target.children) {
-        this._listenSlots(this._target.children);
+      } else if (Polymer.wrap(this._target).children) {
+        this._listenSlots(
+            /** @type {!NodeList<!Node>} */ (Polymer.wrap(this._target).children));
         if (window.ShadyDOM) {
           this._shadyChildrenObserver =
             ShadyDOM.observeChildren(this._target, (mutations) => {
@@ -172,8 +174,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     disconnect() {
       if (isSlot(this._target)) {
         this._unlistenSlots([this._target]);
-      } else if (this._target.children) {
-        this._unlistenSlots(this._target.children);
+      } else if (Polymer.wrap(this._target).children) {
+        this._unlistenSlots(
+            /** @type {!NodeList<!Node>} */ (Polymer.wrap(this._target).children));
         if (window.ShadyDOM && this._shadyChildrenObserver) {
           ShadyDOM.unobserveChildren(this._shadyChildrenObserver);
           this._shadyChildrenObserver = null;

@@ -405,7 +405,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
         event.detail = detail;
         let node = options.node || this;
-        node.dispatchEvent(event);
+        Polymer.wrap(node).dispatchEvent(event);
         return event;
       }
 
@@ -484,6 +484,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {Element} Element found by the selector, or null if not found.
        */
       $$(slctr) {
+        // Note, no need to `wrap` this because root is always patched
         return this.root.querySelector(slctr);
       }
 
@@ -494,7 +495,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @this {Element}
        */
       get domHost() {
-        let root = this.getRootNode();
+        let root = Polymer.wrap(this).getRootNode();
         return (root instanceof DocumentFragment) ? /** @type {ShadowRoot} */ (root).host : root;
       }
 
@@ -505,7 +506,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {void}
        */
       distributeContent() {
-        if (window.ShadyDOM && this.shadowRoot) {
+        const thisEl = /** @type {Element} */ (this);
+        const domApi = /** @type {Polymer.DomApi} */(Polymer.dom(thisEl));
+        if (window.ShadyDOM && domApi.shadowRoot) {
           ShadyDOM.flush();
         }
       }
@@ -605,6 +608,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {!Array<!Node>} List of distributed nodes for the `<slot>`.
        */
       getContentChildNodes(slctr) {
+        // Note, no need to `wrap` this because root is always patched
         let content = this.root.querySelector(slctr || 'slot');
         return content ? /** @type {Polymer.DomApi} */(Polymer.dom(content)).getDistributedNodes() : [];
       }
@@ -640,8 +644,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       isLightDescendant(node) {
         const thisNode = /** @type {Node} */ (this);
-        return thisNode !== node && thisNode.contains(node) &&
-          thisNode.getRootNode() === node.getRootNode();
+        return thisNode !== node && Polymer.wrap(thisNode).contains(node) &&
+        Polymer.wrap(thisNode).getRootNode() === Polymer.wrap(node).getRootNode();
       }
 
       /**
@@ -651,7 +655,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {boolean} true if node is in this element's local DOM tree.
        */
       isLocalDescendant(node) {
-        return this.root === node.getRootNode();
+        return this.root === Polymer.wrap(node).getRootNode();
       }
 
       /**
@@ -852,9 +856,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           bool = !node.hasAttribute(name);
         }
         if (bool) {
-          node.setAttribute(name, '');
+          Polymer.wrap(node).setAttribute(name, '');
         } else {
-          node.removeAttribute(name);
+          Polymer.wrap(node).removeAttribute(name);
         }
       }
 

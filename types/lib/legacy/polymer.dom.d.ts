@@ -187,3 +187,7 @@ declare class EventApi {
   readonly path: EventTarget[];
   constructor(event: any);
 }
+
+declare class Wrapper extends ShadyDOM.Wrapper {
+  prop: any;
+}

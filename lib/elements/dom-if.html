@@ -122,9 +122,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     disconnectedCallback() {
       super.disconnectedCallback();
-      if (!this.parentNode ||
-          (this.parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
-           !this.parentNode.host)) {
+      const parent = Polymer.wrap(this).parentNode;
+      if (!parent || (parent.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
+          !Polymer.wrap(parent).host)) {
         this.__teardownInstance();
       }
     }
@@ -175,15 +175,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     __ensureInstance() {
-      let parentNode = this.parentNode;
+      let parentNode = Polymer.wrap(this).parentNode;
       // Guard against element being detached while render was queued
       if (parentNode) {
         if (!this.__ctor) {
-          let template = /** @type {HTMLTemplateElement} */(this.querySelector('template'));
+          let template = /** @type {HTMLTemplateElement} */(Polymer.wrap(this).querySelector('template'));
           if (!template) {
             // Wait until childList changes and template should be there by then
             let observer = new MutationObserver(() => {
-              if (this.querySelector('template')) {
+              if (Polymer.wrap(this).querySelector('template')) {
                 observer.disconnect();
                 this.__render();
               } else {
@@ -220,16 +220,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (!this.__instance) {
           this.__instance = new this.__ctor();
-          parentNode.insertBefore(this.__instance.root, this);
+          Polymer.wrap(parentNode).insertBefore(this.__instance.root, this);
         } else {
           this.__syncHostProperties();
           let c$ = this.__instance.children;
           if (c$ && c$.length) {
             // Detect case where dom-if was re-attached in new position
-            let lastChild = this.previousSibling;
+            let lastChild = Polymer.wrap(this).previousSibling;
             if (lastChild !== c$[c$.length-1]) {
               for (let i=0, n; (i<c$.length) && (n=c$[i]); i++) {
-                parentNode.insertBefore(n, this);
+                Polymer.wrap(parentNode).insertBefore(n, this);
               }
             }
           }
@@ -254,10 +254,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let c$ = this.__instance.children;
         if (c$ && c$.length) {
           // use first child parent, for case when dom-if may have been detached
-          let parent = c$[0].parentNode;
-          // Instance children may be disconnected from parents when dom-if
-          // detaches if a tree was innerHTML'ed
+          let parent = Polymer.wrap(c$[0]).parentNode;
           if (parent) {
+            parent = Polymer.wrap(parent);
             for (let i=0, n; (i<c$.length) && (n=c$[i]); i++) {
               parent.removeChild(n);
             }

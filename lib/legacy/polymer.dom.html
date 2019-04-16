@@ -42,7 +42,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @memberof Polymer
    */
-  class DomApi {
+  let DomApi = class {
 
     /**
      * @param {Node} node Node for which to create a Polymer.dom helper object.
@@ -90,7 +90,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      *   this element's light or shadow DOM.
      */
     deepContains(node) {
-      if (this.node.contains(node)) {
+      if (Polymer.wrap(this.node).contains(node)) {
         return true;
       }
       let n = node;
@@ -98,7 +98,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // walk from node to `this` or `document`
       while (n && n !== doc && n !== this.node) {
         // use logical parentnode, or native ShadowRoot host
-        n = n.parentNode || n.host;
+        n = Polymer.wrap(n).parentNode || Polymer.wrap(n).host;
       }
       return n === this.node;
     }
@@ -112,7 +112,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * itself or a node or document fragment containing it.
      */
     getOwnerRoot() {
-      return this.node.getRootNode();
+      return Polymer.wrap(this.node).getRootNode();
     }
 
     /**
@@ -123,7 +123,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     getDistributedNodes() {
       return (this.node.localName === 'slot') ?
-        this.node.assignedNodes({flatten: true}) :
+        Polymer.wrap(this.node).assignedNodes({flatten: true}) :
         [];
     }
 
@@ -134,10 +134,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     getDestinationInsertionPoints() {
       let ip$ = [];
-      let n = this.node.assignedSlot;
+      let n = Polymer.wrap(this.node).assignedSlot;
       while (n) {
         ip$.push(n);
-        n = n.assignedSlot;
+        n = Polymer.wrap(n).assignedSlot;
       }
       return ip$;
     }
@@ -193,7 +193,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let node = this.node;
       return node._activeElement !== undefined ? node._activeElement : node.activeElement;
     }
-  }
+  };
 
   function forwardMethods(proto, methods) {
     for (let i=0; i < methods.length; i++) {
@@ -235,24 +235,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  forwardMethods(DomApi.prototype, [
-    'cloneNode', 'appendChild', 'insertBefore', 'removeChild',
-    'replaceChild', 'setAttribute', 'removeAttribute',
-    'querySelector', 'querySelectorAll'
-  ]);
-
-  forwardReadOnlyProperties(DomApi.prototype, [
-    'parentNode', 'firstChild', 'lastChild',
-    'nextSibling', 'previousSibling', 'firstElementChild',
-    'lastElementChild', 'nextElementSibling', 'previousElementSibling',
-    'childNodes', 'children', 'classList'
-  ]);
-
-  forwardProperties(DomApi.prototype, [
-    'textContent', 'innerHTML'
-  ]);
-
-
   /**
    * Event API wrapper class returned from `Polymer.dom.(target)` when
    * `target` is an `Event`.
@@ -268,7 +250,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {!EventTarget} The node this event was dispatched to
      */
     get rootTarget() {
-      return this.event.composedPath()[0];
+      return this.path[0];
     }
 
     /**
@@ -349,6 +331,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   Polymer.DomApi.prototype.querySelectorAll;
 
+  if (window['ShadyDOM'] && window['ShadyDOM']['inUse'] && window['ShadyDOM']['noPatch'] && window['ShadyDOM']['Wrapper']) {
+
+    class Wrapper extends window['ShadyDOM']['Wrapper'] {}
+
+    // copy bespoke API onto wrapper
+    Object.getOwnPropertyNames(DomApi.prototype).forEach((prop) => {
+      if (prop != 'activeElement') {
+        Wrapper.prototype[prop] = DomApi.prototype[prop];
+      }
+    });
+
+    DomApi = Polymer.DomApi = Wrapper;
+
+    Object.defineProperties(EventApi.prototype, {
+
+      localTarget: {
+        get() {
+          return this.event.currentTarget;
+        },
+        configurable: true
+      },
+
+      path: {
+        get() {
+          return window['ShadyDOM']['composedPath'](this.event);
+        },
+        configurable: true
+      }
+    });
+
+  } else {
+
+    forwardMethods(Polymer.DomApi.prototype, [
+      'cloneNode', 'appendChild', 'insertBefore', 'removeChild',
+      'replaceChild', 'setAttribute', 'removeAttribute',
+      'querySelector', 'querySelectorAll'
+    ]);
+
+    forwardReadOnlyProperties(Polymer.DomApi.prototype, [
+      'parentNode', 'firstChild', 'lastChild',
+      'nextSibling', 'previousSibling', 'firstElementChild',
+      'lastElementChild', 'nextElementSibling', 'previousElementSibling',
+      'childNodes', 'children', 'classList'
+    ]);
+
+    forwardProperties(Polymer.DomApi.prototype, [
+      'textContent', 'innerHTML'
+    ]);
+  }
+
   /**
    * Legacy DOM and Event manipulation API wrapper factory used to abstract
    * differences between native Shadow DOM and "Shady DOM" when polyfilling on
@@ -367,8 +399,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   Polymer.dom = function(obj) {
     obj = obj || document;
-    if (!obj.__domApi) {
-      let helper;
+    if (obj instanceof DomApi || obj instanceof EventApi) {
+      return obj;
+    }
+    let helper = obj.__domApi;
+    if (!helper) {
       if (obj instanceof Event) {
         helper = new EventApi(obj);
       } else {
@@ -376,7 +411,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       obj.__domApi = helper;
     }
-    return obj.__domApi;
+    return helper;
   };
 
   Polymer.dom.matchesSelector = matchesSelector;
